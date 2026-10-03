@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Does 401(k) Eligibility Raise Wealth? | Double Machine Learning</title>
+<script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
+<style>
+  body { font-family: Georgia, 'Times New Roman', serif; color: #222; max-width: 960px;
+         margin: 0 auto; padding: 24px; line-height: 1.6; background: #fafafa; }
+  h1 { font-size: 1.9em; margin-bottom: 0.1em; }
+  h2 { font-size: 1.35em; border-bottom: 2px solid #1f4e79; padding-bottom: 4px; margin-top: 2em; }
+  .sub { color: #555; margin-top: 0; }
+  nav { background: #1f4e79; padding: 10px 16px; border-radius: 6px; margin: 18px 0; }
+  nav a { color: #fff; margin-right: 18px; text-decoration: none; font-family: sans-serif; font-size: 0.95em; }
+  nav a:hover { text-decoration: underline; }
+  section { background: #fff; padding: 20px 24px; border-radius: 6px; margin-bottom: 18px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
+  table { border-collapse: collapse; width: 100%; font-size: 0.92em; margin: 12px 0; font-family: sans-serif; }
+  th, td { border: 1px solid #ccc; padding: 7px 10px; text-align: right; }
+  th { background: #eef3f8; text-align: right; }
+  td:first-child, th:first-child { text-align: left; }
+  .plot { width: 100%; height: 420px; }
+  .note { background: #fff8e6; border-left: 4px solid #d9a404; padding: 10px 14px;
+          margin: 14px 0; font-size: 0.95em; }
+  .kpi { display: inline-block; background: #eef3f8; border-radius: 6px; padding: 10px 18px;
+         margin: 6px 10px 6px 0; font-family: sans-serif; }
+  .kpi b { font-size: 1.4em; color: #1f4e79; display: block; }
+  footer { color: #777; font-size: 0.85em; margin-top: 24px; }
+  code { background: #eee; padding: 1px 5px; border-radius: 3px; font-size: 0.9em; }
+</style>
+</head>
+<body>
+
+<h1>Does 401(k) Eligibility Raise Wealth?</h1>
+<p class="sub">A four-estimator causal comparison: naive OLS, OLS with controls, propensity-score matching, and double machine learning. By Anurag.</p>
+
+<nav>
+  <a href="#overview">Overview</a>
+  <a href="#methods">Methods</a>
+  <a href="#results">Results</a>
+  <a href="#limitations">Limitations</a>
+</nav>
+
+<section id="overview">
+<h2>Overview</h2>
+<p>Being offered a 401(k) plan is not random: higher-income, older, more educated workers are more likely to be eligible, and those same traits predict wealth with or without a retirement plan. This project estimates the causal effect of eligibility on net financial assets with four methods and scores each one against a <b>known true effect of $8,000</b>, because the data are simulated from a documented process (the classic Wooldridge 401k file could not be fetched from any public mirror; the attempts are listed in <code>data/build_data.py</code>).</p>
+<div>
+  <div class="kpi"><b>n = 8,000</b>households</div>
+  <div class="kpi"><b>77%</b>eligible for 401(k)</div>
+  <div class="kpi"><b>$8,000</b>true causal effect</div>
+  <div class="kpi"><b>$63,085</b>naive wealth gap</div>
+</div>
+<p>Eligible workers earn on average <b>$79,209</b> vs <b>$46,439</b> for the non-eligible. That gap is selection, not causation, and the naive estimate below treats it as causation.</p>
+<div id="confPlot" class="plot"></div>
+</section>
+
+<section id="methods">
+<h2>Methods</h2>
+<p>All four methods target the average causal effect of eligibility on net financial assets, under unconfoundedness (no unmeasured common causes) and overlap (every worker type has some chance of being eligible or not). Both hold by construction in the simulation.</p>
+<table>
+  <tr><th>Method</th><th>Idea</th><th>When it is valid</th></tr>
+  <tr><td>Naive OLS</td><td>Regress wealth on eligibility only</td><td>Only under random assignment (not the case here)</td></tr>
+  <tr><td>OLS with controls</td><td>Add income, age, education, etc. linearly</td><td>Only if confounders act linearly (income is concave here)</td></tr>
+  <tr><td>Propensity-score matching</td><td>Logistic score, 1:1 nearest-neighbor with replacement and caliper; average within-pair wealth gaps</td><td>If matches are truly alike on confounders; balance is checked</td></tr>
+  <tr><td>Double machine learning</td><td>Cross-fitted random forests learn E[wealth|X] and E[eligibility|X] out-of-fold; regress wealth residuals on eligibility residuals; robust SE</td><td>If the ML models capture the confounding; no functional-form guess needed</td></tr>
+</table>
+<p>The DML is implemented by hand with scikit-learn (no econml): K-fold split, out-of-fold nuisance predictions, residual-on-residual slope with a heteroskedasticity-robust standard error.</p>
+</section>
+
+<section id="results">
+<h2>Results</h2>
+<div id="forestPlot" class="plot" style="height:460px"></div>
+<table>
+  <tr><th>Method</th><th>Estimate</th><th>95% CI</th><th>Bias</th><th>Covers $8,000</th></tr>
+  <tr><td>Naive OLS</td><td>$63,085</td><td>[$59,621, $66,549]</td><td>+$55,085</td><td>No</td></tr>
+  <tr><td>OLS with controls</td><td>$11,542</td><td>[$9,006, $14,077]</td><td>+$3,542</td><td>No</td></tr>
+  <tr><td>Propensity-score matching</td><td>$6,287</td><td>[$4,536, $8,039]</td><td>-$1,713</td><td>Yes</td></tr>
+  <tr><td>Double machine learning (K=5, RF)</td><td>$7,768</td><td>[$5,210, $10,326]</td><td>-$232</td><td>Yes</td></tr>
+</table>
+<div class="note"><b>Reading the table.</b> The naive comparison overstates the effect by a factor of eight. Linear controls remove most of the bias but leave +$3,542, because the income effect on wealth is concave and a straight line cannot follow it. Matching works once balance is actually achieved (income SMD 0.84 before, 0.00 after; all covariates under 0.07). DML is closest to the truth with bias -$232.</div>
+<h3>Covariate balance before and after matching</h3>
+<div id="balancePlot" class="plot"></div>
+<h3>DML sensitivity: learner and fold count</h3>
+<div id="sensPlot" class="plot"></div>
+<table>
+  <tr><th>Configuration</th><th>Estimate</th><th>95% CI</th></tr>
+  <tr><td>Random forest, K=2</td><td>$8,208</td><td>[$5,636, $10,780]</td></tr>
+  <tr><td>Random forest, K=5</td><td>$7,768</td><td>[$5,210, $10,326]</td></tr>
+  <tr><td>Random forest, K=10</td><td>$7,695</td><td>[$5,144, $10,245]</td></tr>
+  <tr><td>Gradient boosting, K=2</td><td>$7,570</td><td>[$4,997, $10,144]</td></tr>
+  <tr><td>Gradient boosting, K=5</td><td>$7,602</td><td>[$5,031, $10,174]</td></tr>
+  <tr><td>Gradient boosting, K=10</td><td>$7,527</td><td>[$4,951, $10,102]</td></tr>
+</table>
+<h3>Monte Carlo check: bias and coverage over 30 fresh datasets</h3>
+<p>One dataset is one draw, so the full analysis was repeated on 30 fresh simulated datasets (n = 4,000 each). A well-calibrated 95% interval should cover the truth about 95% of the time.</p>
+<table id="mcTable">
+  <tr><th>Method</th><th>Mean bias ($)</th><th>Coverage of 95% CI</th><th>Mean CI width ($)</th></tr>
+  <tr><td>Naive OLS</td><td>+$56,405</td><td>0.00</td><td>$9,889</td></tr>
+  <tr><td>OLS with controls</td><td>+$4,246</td><td>0.30</td><td>$7,182</td></tr>
+  <tr><td>Propensity-score matching</td><td>+$623</td><td>0.43</td><td>$4,744</td></tr>
+  <tr><td>DML (K=5, random forest)</td><td>+$811</td><td>0.90</td><td>$7,358</td></tr>
+</table>
+<div class="note"><b>Reading the Monte Carlo table.</b> The naive interval never covers the truth, and the linear-controls interval covers only 30% of the time. Matching is nearly unbiased on average but its intervals cover just 43%: the paired standard error treats reused controls as independent, so it understates the real variability. DML is the only method whose intervals cover at roughly the nominal rate (90%).</div>
+</section>
+
+<section id="limitations">
+<h2>Limitations</h2>
+<ul>
+  <li><b>Unconfoundedness is assumed, not shown.</b> If an unmeasured variable (financial literacy, employer generosity) drives both eligibility and wealth, all four estimates are biased and no adjustment on these covariates can fix that.</li>
+  <li><b>Simulated data.</b> The data-generating process is realistic but invented; the numbers describe the simulation, not the US labor market. The methods and the comparison are real.</li>
+  <li><b>Matching standard errors are optimistic:</b> they treat the matches as fixed and the propensity score as known.</li>
+  <li><b>Constant treatment effect</b> ($8,000 for everyone) keeps the four methods comparable; real effects vary.</li>
+  <li><b>Overlap holds by construction</b> (propensities clipped to [0.02, 0.98]).</li>
+</ul>
+<p>Full write-up with references: <code>REPORT.md</code>. Reproduce everything: <code>python3 data/build_data.py</code>, then run <code>notebooks/analysis.ipynb</code>. Code: <code>src/estimators.py</code> (includes the hand-written DML).</p>
+</section>
+
+<footer>Seed 20261002 throughout. Built with Python, scikit-learn, and Plotly.</footer>
+
+<script>
+const BLUE = '#1f4e79', RED = '#c0392b', TRUTH = 8000;
+
+// Confounding: eligibility rate by income decile
+Plotly.newPlot('confPlot', [{
+  x: [18.9, 32.1, 39.9, 47.4, 55.7, 65.0, 76.0, 90.3, 113.7, 264.4],
+  y: [0.497, 0.611, 0.670, 0.685, 0.746, 0.800, 0.859, 0.900, 0.951, 0.975],
+  mode: 'lines+markers', name: 'Share eligible',
+  line: {color: BLUE}, marker: {color: BLUE, size: 8}
+}], { title: 'Eligibility rises with income: the confounding',
+      xaxis: {title: 'Household income ($ thousands, decile midpoints)'},
+      yaxis: {title: 'Share eligible for 401(k)', range: [0.45, 1.02]},
+      margin: {t: 40} }, {responsive: true});
+
+// Forest plot
+const methods = ['Naive OLS', 'OLS with controls', 'Propensity-score matching', 'DML (K=5, RF)'];
+const est = [63085, 11542, 6287, 7768];
+const lo  = [59621, 9006, 4536, 5210];
+const hi  = [66549, 14077, 8039, 10326];
+Plotly.newPlot('forestPlot', [{
+  x: est, y: methods, mode: 'markers',
+  error_x: {type: 'data', symmetric: false,
+            array: hi.map((h,i)=>h-est[i]), arrayminus: est.map((e,i)=>e-lo[i]),
+            color: BLUE, thickness: 2, width: 6},
+  marker: {color: BLUE, size: 10}, name: 'Estimate with 95% CI'
+}], { title: 'Treatment effect estimates with 95% confidence intervals',
+      xaxis: {title: 'Estimated effect of 401(k) eligibility on net financial assets ($)'},
+      shapes: [{type: 'line', x0: TRUTH, x1: TRUTH, y0: -0.6, y1: 3.6,
+                line: {color: RED, dash: 'dash', width: 2}}],
+      annotations: [{x: TRUTH, y: 3.55, text: 'True effect ($8,000)',
+                     showarrow: false, xanchor: 'left', font: {color: RED}}],
+      margin: {t: 40, l: 190} }, {responsive: true});
+
+// Balance love plot
+const covs = ['Income', 'Age', 'Education', 'Family size', 'Married', 'Has IRA', 'Owns home'];
+const before = [0.843, 0.234, 0.169, 0.006, 0.200, 0.267, 0.099];
+const after  = [0.001, 0.051, 0.013, 0.061, 0.039, 0.056, 0.027];
+Plotly.newPlot('balancePlot', [
+  {x: before, y: covs, mode: 'markers', name: 'Before matching',
+   marker: {color: RED, size: 10}},
+  {x: after, y: covs, mode: 'markers', name: 'After matching',
+   marker: {color: BLUE, size: 10, symbol: 'square'}}
+], { title: 'Covariate balance before and after matching',
+     xaxis: {title: 'Absolute standardized mean difference'},
+     shapes: [{type: 'line', x0: 0.1, x1: 0.1, y0: -0.6, y1: 6.6,
+               line: {color: '#333', dash: 'dash', width: 1}}],
+     annotations: [{x: 0.1, y: 6.55, text: '0.1 rule of thumb',
+                    showarrow: false, xanchor: 'left'}],
+     margin: {t: 40, l: 110} }, {responsive: true});
+
+// Sensitivity plot
+const sensLab = ['RF, K=2', 'RF, K=5', 'RF, K=10', 'GBM, K=2', 'GBM, K=5', 'GBM, K=10'];
+const sensEst = [8208, 7768, 7695, 7570, 7602, 7527];
+const sensLo  = [5636, 5210, 5144, 4997, 5031, 4951];
+const sensHi  = [10780, 10326, 10245, 10144, 10174, 10102];
+Plotly.newPlot('sensPlot', [{
+  x: sensEst, y: sensLab, mode: 'markers',
+  error_x: {type: 'data', symmetric: false,
+            array: sensHi.map((h,i)=>h-sensEst[i]), arrayminus: sensEst.map((e,i)=>e-sensLo[i]),
+            color: BLUE, thickness: 2, width: 5},
+  marker: {color: BLUE, size: 9}, name: 'DML estimate with 95% CI'
+}], { title: 'DML sensitivity: nuisance learner and number of folds',
+      xaxis: {title: 'DML estimate of the 401(k) effect ($)'},
+      shapes: [{type: 'line', x0: TRUTH, x1: TRUTH, y0: -0.6, y1: 5.6,
+                line: {color: RED, dash: 'dash', width: 2}}],
+      margin: {t: 40, l: 90} }, {responsive: true});
+</script>
+</body>
+</html>
