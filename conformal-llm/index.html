@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Honest confidence sets for LLM answers — conformal prediction demo</title>
+<meta name="description" content="A language model answers 416 multiple-choice questions. Split conformal prediction turns its output probabilities into answer sets with a guaranteed 90% coverage. Interactive demo.">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header>
+  <p class="kicker">conformal-llm</p>
+  <h1>Honest confidence sets for LLM answers</h1>
+  <p class="lede">I had a small open language model answer 416 multiple-choice science questions,
+  then used split conformal prediction to turn its output probabilities into <em>answer sets</em>
+  that contain the correct option at least 90% of the time. Guaranteed by math, checked on held-out data.</p>
+  <p class="meta" id="meta-line">loading results&hellip;</p>
+</header>
+
+<main>
+<section id="demo">
+  <h2>Try it: pick a question, get a guaranteed set</h2>
+  <div class="controls">
+    <label>Question
+      <select id="q-select"></select>
+    </label>
+    <label>Coverage target
+      <select id="alpha-select">
+        <option value="0.05">95%</option>
+        <option value="0.1" selected>90%</option>
+        <option value="0.2">80%</option>
+        <option value="0.3">70%</option>
+      </select>
+    </label>
+    <label>Score
+      <select id="method-select">
+        <option value="lac" selected>LAC (1 &minus; p)</option>
+        <option value="aps">APS (adaptive)</option>
+      </select>
+    </label>
+    <button id="random-btn" type="button">Random question</button>
+  </div>
+  <div id="q-card">
+    <p id="q-subject" class="subject"></p>
+    <p id="q-text" class="question"></p>
+    <div id="options"></div>
+    <div id="verdict"></div>
+  </div>
+  <p class="fineprint" id="guarantee-line"></p>
+</section>
+
+<section id="evidence">
+  <h2>Does the guarantee hold? Yes, on held-out questions</h2>
+  <p>I split the questions 50/50. The threshold was calibrated on 208 questions the demo never shows
+  you; the numbers below are measured on the other 208.</p>
+  <div class="charts">
+    <div class="chart">
+      <h3>Empirical vs nominal coverage</h3>
+      <svg id="coverage-chart" viewBox="0 0 420 300" role="img" aria-label="empirical versus nominal coverage"></svg>
+      <p class="caption">Both scores sit on or above the diagonal: the sets contain the truth at least as
+      often as promised. The naive rule (take every option with p &ge; 1&minus;&alpha;) undercovers badly.</p>
+    </div>
+    <div class="chart">
+      <h3>Set sizes at 90% coverage</h3>
+      <svg id="size-chart" viewBox="0 0 420 300" role="img" aria-label="prediction set size distribution"></svg>
+      <p class="caption">Most sets are small. The model pays for its uncertainty with bigger sets, never with broken promises.</p>
+    </div>
+  </div>
+  <table id="subject-table">
+    <caption>Coverage by subject at 90% nominal (test split)</caption>
+    <thead><tr><th>Subject</th><th>n</th><th>LAC coverage</th><th>APS coverage</th><th>Mean set size (LAC / APS)</th></tr></thead>
+    <tbody></tbody>
+  </table>
+</section>
+
+<section id="how">
+  <h2>How it works, in four steps</h2>
+  <ol class="steps">
+    <li><strong>Score.</strong> For each question the model assigns a probability to each option
+      (its next-token probabilities for A/B/C/D). The nonconformity score is
+      <code>1 &minus; p(correct option)</code>: 0 when the model is sure and right, near 1 when it is confidently wrong.</li>
+    <li><strong>Calibrate.</strong> On 208 held-out questions I take the 90th percentile of those scores
+      (with the finite-sample correction &lceil;(n+1)(1&minus;&alpha;)&rceil;/n). Call it q&#770;.</li>
+    <li><strong>Threshold.</strong> For a new question, the prediction set is every option whose score is at most q&#770;.</li>
+    <li><strong>Guarantee.</strong> If calibration and new questions are exchangeable, the true option lands in the
+      set with probability at least 1&minus;&alpha; &mdash; whatever the model, whatever the data distribution.
+      The model's quality only decides how <em>large</em> the sets have to be.</li>
+  </ol>
+  <h3>Two scores, compared honestly</h3>
+  <p><strong>LAC</strong> (Sadinle, Lei &amp; Wasserman 2019) thresholds <code>1 &minus; p</code> directly.
+  <strong>APS</strong> (Romano, Sesia &amp; Cand&egrave;s 2020) accumulates options from most to least probable
+  and thresholds the running total, which adapts set sizes to each question's difficulty.
+  Both keep the guarantee; the comparison below shows whether adaptivity actually buys smaller sets here.</p>
+  <h3>Honest caveats</h3>
+  <ul class="caveats">
+    <li>The guarantee is <em>marginal</em>: averaged over questions, not per question. A set on one hard
+      question can still miss; the subject table above checks the obvious slices.</li>
+    <li>It assumes new questions come from the same distribution as the calibration set
+      (exchangeability). Calibrate on stats questions, deploy on medical ones, and the promise is void.</li>
+    <li>Coverage is not calibration: a set of all four options covers 100% of the time and tells you nothing.
+      Watch the mean set size alongside coverage.</li>
+  </ul>
+</section>
+
+<section id="repro">
+  <h2>Reproduce it</h2>
+  <p>Code, the executed notebook, and the full write-up (methods, results, limitations, references) are on GitHub.
+  The model runs locally from a GGUF file, so scoring needs no API key.</p>
+  <p><a id="repo-link" href="https://github.com/nepalanurag/conformal-llm">github.com/nepalanurag/conformal-llm</a></p>
+</section>
+</main>
+
+<footer>
+  <p>Built as a portfolio project. Method: split conformal prediction (Angelopoulos &amp; Bates 2021).
+  Questions: MMLU (Hendrycks et al. 2021). Model: Qwen2.5-3B-Instruct, run locally.</p>
+</footer>
+
+<script src="app.js"></script>
+</body>
+</html>

@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Anurag Nepal's AI Experiments Lab</title>
-<meta name="description" content="Four hands-on AI and statistics projects by Anurag Nepal: LLM annotator reliability, RAG evaluation, synthetic data tradeoffs, and double machine learning for causal inference.">
+<meta name="description" content="Six hands-on AI and statistics projects by Anurag Nepal: LLM annotator reliability, RAG evaluation, synthetic data tradeoffs, double machine learning, Bayesian A/B testing, and conformal prediction for LLMs.">
 <style>
   :root { --ink: #1a1a1a; --muted: #5c5c5c; --line: #e2e2e2; --accent: #1f6feb; --bg: #fafafa; }
   * { box-sizing: border-box; }
@@ -29,7 +29,7 @@
 <div class="wrap">
   <header>
     <h1>Anurag Nepal's AI Experiments Lab</h1>
-    <p>Four projects on statistics and AI. Each one is on GitHub with code, an executed notebook, and a full write-up.</p>
+    <p>Six projects on statistics and AI. Each one is on GitHub with code, an executed notebook, and a full write-up.</p>
     <p class="note">Every dashboard below is self-contained and interactive.</p>
   </header>
 
@@ -67,6 +67,24 @@
       <div class="links">
         <a href="/causal-double-ml">View dashboard</a>
         <a href="https://github.com/nepalanurag/causal-double-ml">GitHub repo</a>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2><a href="/bayes-ab-testing">Bayesian A/B Testing Calculator</a></h2>
+      <p>An interactive calculator for A/B tests using Beta-Binomial posteriors. Enter your successes and trials, get posterior distributions, probability that B beats A, and expected loss — no p-values needed.</p>
+      <div class="links">
+        <a href="/bayes-ab-testing">View dashboard</a>
+        <a href="https://github.com/nepalanurag/bayes-ab-testing">GitHub repo</a>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2><a href="/conformal-llm">Honest Confidence Sets for LLM Answers</a></h2>
+      <p>Split conformal prediction applied to multiple-choice QA. I calibrate prediction sets on MMLU questions so they contain the right answer with a guaranteed coverage rate, and show where the guarantee breaks.</p>
+      <div class="links">
+        <a href="/conformal-llm">View dashboard</a>
+        <a href="https://github.com/nepalanurag/conformal-llm">GitHub repo</a>
       </div>
     </div>
   </div>

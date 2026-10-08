@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Bayesian A/B testing calculator</title>
+<meta name="description" content="Paste in successes and trials per arm; get Beta posteriors, P(B beats A), expected loss, a ship/keep-running call, and a simulation-based sample-size planner.">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<main>
+  <h1>Bayesian A/B testing calculator</h1>
+  <p class="lede">Paste in successes and trials for each arm. The calculator fits a
+  Beta posterior per arm and tells you the probability each arm is better,
+  the expected loss of picking it, and whether to ship it or keep running.
+  Nothing leaves your browser.</p>
+
+  <section>
+    <h2>1. Your test data</h2>
+    <div class="grid">
+      <label>A successes <input id="sA" type="number" value="120" min="0"></label>
+      <label>A trials <input id="nA" type="number" value="3000" min="1"></label>
+      <label>B successes <input id="sB" type="number" value="150" min="0"></label>
+      <label>B trials <input id="nB" type="number" value="3000" min="1"></label>
+      <label>Prior a <input id="pa" type="number" value="1" min="0.01" step="any"></label>
+      <label>Prior b <input id="pb" type="number" value="1" min="0.01" step="any"></label>
+      <label>Threshold of caring <input id="eps" type="number" value="0.002" min="0.0001" step="any"></label>
+    </div>
+    <p class="hint">Prior Beta(a, b); a = b = 1 is uniform. The threshold of caring
+    is the conversion-rate loss you are willing to risk by picking wrong
+    (VWO's SmartStats uses 0.002, i.e. 0.2%, as an example).</p>
+    <button id="calcBtn">Calculate</button>
+    <p id="err" class="err"></p>
+  </section>
+
+  <section>
+    <h2>2. Posteriors</h2>
+    <p>A posterior: <b id="postA"></b><br>
+       B posterior: <b id="postB"></b></p>
+    <canvas id="plot" width="640" height="300"></canvas>
+  </section>
+
+  <section>
+    <h2>3. Which arm is better?</h2>
+    <table>
+      <tr><td>P(B beats A)</td><td><b id="pBeatB"></b></td></tr>
+      <tr><td>P(A beats B)</td><td><b id="pBeatA"></b></td></tr>
+      <tr><td>Expected loss of choosing A</td><td><b id="lossA"></b></td></tr>
+      <tr><td>Expected loss of choosing B</td><td><b id="lossB"></b></td></tr>
+    </table>
+    <p class="decision" id="decision"></p>
+    <p id="decisionWhy"></p>
+    <p class="hint">Expected loss of choosing B is the average conversion rate you
+    give up if B turns out to be the worse arm, weighted by how likely that is.
+    It treats small mistakes as cheap and big mistakes as expensive, which a
+    bare probability does not.</p>
+  </section>
+
+  <section>
+    <h2>4. What the naive p-value says</h2>
+    <p>Two-sided two-proportion z-test p-value: <b id="pval"></b></p>
+    <p class="hint">Most dashboards show this number and teams peek at it daily.
+    Peeking breaks it: checking repeatedly and stopping when it "looks significant"
+    inflates the real false-positive rate far above 5%. The Bayesian quantities
+    above stay valid whenever you look, which is the point of this calculator.</p>
+  </section>
+
+  <section>
+    <h2>5. Sample-size planner</h2>
+    <p>How many visitors per arm do you need so that the test usually ends with a
+    clear Bayesian call? This runs a Monte Carlo: it assumes true rates, simulates
+    trials, and counts how often P(B beats A) clears your bar. That is
+    <b>simulated assurance</b>, not classical power: the decision rule is Bayesian
+    and the assumed truth is a point, so read it as planning guidance, not a guarantee.</p>
+    <div class="grid">
+      <label>Baseline rate <input id="ppA" type="number" value="0.05" step="any" min="0.001" max="0.999"></label>
+      <label>Relative lift % <input id="plift" type="number" value="20" step="any" min="0.1"></label>
+      <label>Decision bar P(B&gt;A) <input id="ptau" type="number" value="0.95" step="any" min="0.5" max="0.999"></label>
+      <label>Assurance target % <input id="ptarget" type="number" value="80" step="any" min="1" max="99"></label>
+      <label>Prior a <input id="ppa" type="number" value="1" min="0.01" step="any"></label>
+      <label>Prior b <input id="ppb" type="number" value="1" min="0.01" step="any"></label>
+    </div>
+    <button id="planBtn">Run simulation</button>
+    <p id="planErr" class="err"></p>
+    <p id="planOut"></p>
+    <p class="hint">Simulated data uses a normal approximation to the binomial
+    (120 simulated trials per grid point); fine for planning, not for final analysis.</p>
+  </section>
+
+  <section>
+    <h2>How it works</h2>
+    <ul>
+      <li><b>Posterior.</b> Beta(a, b) prior with s successes in n trials gives
+      Beta(a + s, b + n - s). Beta is the conjugate prior for the binomial, so
+      the update is exact arithmetic.</li>
+      <li><b>P(B beats A).</b> Numerical integration of the B density times the
+      A CDF over [0, 1]. Works for any prior, unlike the closed form which needs
+      integer parameters.</li>
+      <li><b>Expected loss.</b> Choosing B costs E[max(pA - pB, 0)] under the
+      joint posterior. The inner integral has an exact form in beta CDFs, so one
+      numerical quadrature finishes it.</li>
+      <li><b>Decision.</b> Ship an arm when its expected loss is under your
+      threshold of caring. Method follows the VWO SmartStats framework
+      (Stucchio, 2015); the Python analysis behind this page cross-checks the
+      quadrature against the exact closed form and Monte Carlo.</li>
+    </ul>
+  </section>
+</main>
+<script src="app.js"></script>
+</body>
+</html>
